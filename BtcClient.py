@@ -7,8 +7,8 @@ import time
 
 
 #初始化apikey，secretkey,url
-apikey = '9064f122-45fc-420a-b31b-45d463111dac'
-secretkey = 'FB00AC7CBC4DC4501FB861AAE3887F65'
+apikey = ''
+secretkey = ''
 okcoinRESTURL = 'www.okcoin.cn'
 
 #现货API
