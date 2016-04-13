@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
 from BtcSpotAPI import BtcSpot
 from Datatable import draw
+from FiexdInvestment import fiexdInvestment
 import json
 import time
 
+
 #初始化apikey，secretkey,url
-apikey = ''
-secretkey = ''
+apikey = '9064f122-45fc-420a-b31b-45d463111dac'
+secretkey = 'FB00AC7CBC4DC4501FB861AAE3887F65'
 okcoinRESTURL = 'www.okcoin.cn'
-
-#2个上波浪，2个下波浪
-MAX_UPWAVE = 2
-MAX_DOWNWAVE = 2
-
-PRE_VALUE = 500
 
 #现货API
 okcoinSpot = BtcSpot(okcoinRESTURL,apikey,secretkey)
+
+money = 2000
+coin = 0
 
 def klineData():
 	arrkline = okcoinSpot.kline('btc_cny','1min','1','1417536000000')
@@ -31,230 +30,33 @@ def klineData():
 def arrKlineData(size = '1'):
 	return okcoinSpot.kline('btc_cny','15min',size,'1417536000000')
 
-#波浪策略
-def waveStrategy():
-	money = 10000
-	coin = 0
-
-	upWave = 0
-	downWave = 0
-	lastUpPrice = 0
-	lastDownPrice = 0
-	lastOverPrice = 0
-
-	oneKline = klineData()
-	lastUpPrice = oneKline[2]
-	lastDownPrice = oneKline[3]
-	lastOverPrice = oneKline[4]
-
-	while True:
-		time.sleep(1 * 60)
-		oneKline = klineData()
-		upPrice = oneKline[2]
-		downPrice = oneKline[3]
-		overPrice = oneKline[4]
-		if overPrice > lastOverPrice:#一个上波浪
-			upWave = upWave + 1
-			downWave = 0
-			lastOverPrice = overPrice
-
-		if overPrice < lastOverPrice:#一个下波浪
-			downWave = downWave + 1
-			upWave = 0
-			lastOverPrice = overPrice
-
-		if  money > 0 and downWave >= MAX_DOWNWAVE:
-			print('买')
-			coin = money / overPrice
-			money = 0
-			upWave = 0
-			downWave = 0
-		elif coin > 0 and upWave >= MAX_UPWAVE:
-			print('卖')
-			money = coin * overPrice
-			coin = 0
-			upWave = 0
-			downWave = 0
-		print('钱：' + '%s'%money + "	币：" + '%s'%coin)
-
-#定投策略
-def fiexdInvestment():
-	money = 2000
-	coin = 0
-	value = 0	#价值
-	preBuy = 0
-	startPrice = 0	#第一次购买的价格
-	standardNetWorth = 0	#标准净值
-	standardValue = 0	#标准价值=价值/标准净值
-	lastStandardValue = 0
-	lastBuy = 0
-	totalBuy = 0
-	isStartBuy = True
-
-	while True:
-		print(time.strftime("%Y-%m-%d %H:%M"))
-
-		oneKline = klineData()
-		upPrice = oneKline[2]
-		downPrice = oneKline[3]
-		overPrice = oneKline[4]
-
-		if startPrice == 0:
-			startPrice = overPrice
-
-		standardNetWorth = 1 / startPrice * overPrice
-		value = value + PRE_VALUE
-		standardValue = value / standardNetWorth
-		preBuy = (standardValue - lastStandardValue) * standardNetWorth
-		preCoin = preBuy / overPrice
-		lastStandardValue = standardValue
-
-		profit = 0
-		if isStartBuy == False:
-			profit = coin * overPrice - totalBuy
-			print("盈利：" + '%.2f'%profit)
-		if profit >= 0.5 or profit <= -1:
-			money = money + coin * overPrice
-			coin = 0
-			totalBuy = 0
-			startPrice = 0
-			value = 0
-			lastStandardValue = 0
-			lastBuy = 0
-			isStartBuy = True
-			print("卖	RMB：" + '%.2f'%money + "	btc：" + '%.4f'%coin)
-		elif money - preBuy > 0:
-			money = money - preBuy
-			coin = coin + preCoin
-			totalBuy = totalBuy + preBuy
-			lastBuy = preBuy
-			isStartBuy = False
-			print("买	RMB：" + '%.2f'%money + "	btc：" + '%.4f'%coin + "	购买：" + '%.2f'%preBuy)
-
-		print("总价值：" + '%.2f'%(money + coin * overPrice))
-
-		time.sleep(1 * 60)
-
-def fiexdInvestment2(datas):
-	money = 2000
-	coin = 0
-	value = 0	#价值
-	preBuy = 0
-	startPrice = 0	#第一次购买的价格
-	standardNetWorth = 0	#标准净值
-	standardValue = 0	#标准价值=价值/标准净值
-	lastStandardValue = 0
-	lastBuy = 0
-	totalBuy = 0
-	isStartBuy = True
-	isUp = False
-	isDown = False
-	isVolumeUp = False	#放量上涨
-	isVolumeDown = False	#放量下跌
-	isNull = False
-	overPrice = 0
-
-	lastTradingVolume = 0
-	lastPrice = 0
-	maxMoney = 0
-	shockTime = 0
-
-	for onedata in datas:
-		price = onedata['price']
-		overPrice = price
-		tradingvolume = onedata['volume']
-
-		# print("价格：" + '%s'%price + "	成交量：" + '%s'%tradingvolume)
-		if startPrice == 0:
-			startPrice = price
-			lastTradingVolume = tradingvolume
-
-		if price > lastPrice:	#升
-			isUp = True
-			isDown = False
-			if lastTradingVolume / tradingvolume >= 3:
-				isVolumeUp = True
-				isVolumeDown = False
-				# print('放量上涨')
-		elif price < lastPrice: #跌
-			isUp = False
-			isDown = True
-			if lastTradingVolume / tradingvolume >= 1.2 or tradingvolume >= 8000:
-				isVolumeUp = False
-				isVolumeDown = True
-				# print('放量下跌')
-				shockTime = 0
-				if coin == 0:
-					isNull = True
-					continue
-
-		if isNull == True and coin == 0 and price - lastPrice <= 5 and price - lastPrice >= -5:
-			shockTime = shockTime + 1
-			if shockTime < 5:	#空仓时，没在震荡期不买入
-				continue
-		else:
-			shockTime = 0
-
-		standardNetWorth = 1 / startPrice * price
-		value = value + PRE_VALUE
-		standardValue = value / standardNetWorth
-		preBuy = (standardValue - lastStandardValue) * standardNetWorth
-		preCoin = preBuy / price
-		lastStandardValue = standardValue
-		lastPrice = price
-
-		profit = 0
-		if isStartBuy == False:
-			profit = coin * price - totalBuy
-			# print("盈利：" + '%.2f'%profit)
-		if profit > 0 or (money - preBuy <= 0 and profit > 0) or (isVolumeDown == True) or (isVolumeUp == True and (isDown == True or lastTradingVolume / tradingvolume < 3)):
-			if isVolumeDown == True or (isVolumeUp == True and (isDown == True or lastTradingVolume / tradingvolume < 2)):
-				isVolumeUp = False
-				isVolumeDown = False
-			money = money + coin * price
-			coin = 0
-			totalBuy = 0
-			startPrice = 0
-			value = 0
-			lastStandardValue = 0
-			lastBuy = 0
-			isStartBuy = True
-			# print("卖	RMB：" + '%.2f'%money + "	btc：" + '%.4f'%coin + "	价格：" + '%s'%price)
-		elif money - preBuy > 0:
-			money = money - preBuy
-			coin = coin + preCoin
-			totalBuy = totalBuy + preBuy
-			lastBuy = preBuy
-			isStartBuy = False
-			isNull = True
-			# print("买	RMB：" + '%.2f'%money + "	btc：" + '%.4f'%coin + "	购买：" + '%.2f'%preBuy + "	价格：" + '%s'%price)
-
-		if money + coin * price > maxMoney:
-			maxMoney = money + coin * price
-
-	print("总价值：" + '%.2f'%(money + coin * overPrice) + "	历史最高价值：" + '%.2f'%maxMoney)
-
 if __name__ == '__main__':
-	#fiexdInvestment()
 	# draw()
 	arrData = arrKlineData('2880')
 	price0 = []
 	labels = []
 	data = []
+	overPrice = 0
 
+	index = 0
 	for oneKline in arrData:
 		overPrice = oneKline[4]
 		tradingvolume = oneKline[5]
 		timeStamp = oneKline[0]
+
 		arrTime = time.localtime(timeStamp / 1000)
-		styleTime = time.strftime("%H:%M",arrTime)
+		styleTime = time.strftime("%d",arrTime)
+		index = index + 1
+
 		price0.append(overPrice)
-		labels.append('%s'%styleTime)
+		labels.append('%s'%index)
 		data.append({'price':overPrice,'volume':tradingvolume})
 
-	# draw(price0,labels)
-
-	fiexdInvestment2(data)
+	draw(price0,labels)
+	btcData = fiexdInvestment(money, coin, data)
+	money = btcData['money']
+	coin = btcData['coin']
+	print("总价值：" + '%.2f'%(money + coin * overPrice))
 		
 # print(u'现货行情')
 # print(okcoinSpot.ticker('btc_cny'))
