@@ -3,6 +3,8 @@ from tkinter import *
 from BtcSpotAPI import BtcSpot
 from Datatable import draw
 from FiexdInvestment import fiexdInvestment
+from BtcEmailAPI import *
+
 import json
 import time
 
@@ -47,7 +49,7 @@ class BtcClient(Frame):
 		return self.okcoinSpot.kline('btc_cny','15min',size,'1417536000000')
 
 	def onStart(self):
-		arrData = self.arrKlineData('2880')
+		arrData = self.arrKlineData('32')
 		price0 = []
 		labels = []
 		data = []
@@ -75,6 +77,11 @@ class BtcClient(Frame):
 
 		self.totalPrice = Label(self,text="总价值：" + '%.2f'%(self.money + self.coin * overPrice))
 		self.totalPrice.grid(row=2, column=0)
+
+		if sendMail(to_addr,'Python爱好者——BTC报告','BTC总价值：' + '%.2f'%(self.money + self.coin * overPrice)):
+			print('发送成功')
+		else:
+			print('发送失败')
 
 app = BtcClient()
 # 设置窗口标题:
